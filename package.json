@@ -1,0 +1,16 @@
+{
+  "name": "ssstik-clone",
+  "version": "1.0.0",
+  "description": "Clon ligero de ssstik para descargar videos de TikTok",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@sasmeee/igdl": "^0.0.1-security",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "sharp": "^0.35.5"
+  }
+}
