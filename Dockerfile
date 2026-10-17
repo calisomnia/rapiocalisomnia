@@ -23,9 +23,8 @@ COPY package*.json ./
 # Instalar dependencias de producción
 RUN npm install --omit=dev
 
-# Copiar el resto del código del servidor
+# Copiar el código del servidor
 COPY server.js ./
-COPY public ./public
 
 # Variable de entorno para el puerto de Render
 ENV PORT=10000
