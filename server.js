@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 
@@ -24,7 +24,11 @@ if (process.platform === 'win32' && fs.existsSync(localWinYtdlp)) {
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+}
 
 // Health check para Render
 app.get('/health', (req, res) => {
@@ -65,14 +69,29 @@ app.post('/api/tiktok', async (req, res) => {
   }
 });
 
-// Helper genérico para extraer con yt-dlp (Instagram, Facebook y YouTube)
+// Helper genérico para extraer con yt-dlp (Instagram, Facebook, YouTube y X)
 async function extractWithYtdlp(url, platformName) {
-  const { stdout } = await execFileAsync(YTDLP_PATH, [
+  const isYT = platformName === 'YouTube';
+  const cookiesPath = path.join(__dirname, 'cookies.txt');
+  const hasCookies = fs.existsSync(cookiesPath);
+
+  const args = [
     '--dump-single-json',
     '--no-warnings',
-    '--no-playlist',
-    url
-  ], { timeout: 45000 });
+    '--no-playlist'
+  ];
+
+  if (hasCookies) {
+    args.push('--cookies', cookiesPath);
+  }
+
+  if (isYT) {
+    args.push('--extractor-args', 'youtube:player_client=android,web,tv');
+  }
+
+  args.push(url);
+
+  const { stdout } = await execFileAsync(YTDLP_PATH, args, { timeout: 45000 });
 
   const metadata = JSON.parse(stdout);
 
@@ -82,14 +101,15 @@ async function extractWithYtdlp(url, platformName) {
 
   if (metadata.formats && metadata.formats.length > 0) {
     // 1. Buscar audio
-    const audioFormats = metadata.formats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'));
+    const audioFormats = metadata.formats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url);
     if (audioFormats.length > 0) {
       audioUrl = audioFormats[audioFormats.length - 1].url;
     }
 
     // 2. Buscar formatos de video progresivos
-    const videoWithAudio = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none');
+    const videoWithAudio = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && f.url);
     if (videoWithAudio.length > 0) {
+      // Priorizar el formato más alto con audio y video
       videoUrl = videoWithAudio[videoWithAudio.length - 1].url;
       const seen = new Set();
       videoWithAudio.forEach(f => {
@@ -104,7 +124,7 @@ async function extractWithYtdlp(url, platformName) {
         }
       });
     } else {
-      const videoFormats = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none');
+      const videoFormats = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.url);
       if (videoFormats.length > 0) {
         videoUrl = videoFormats[videoFormats.length - 1].url;
       }
@@ -114,7 +134,7 @@ async function extractWithYtdlp(url, platformName) {
   resolutions.sort((a, b) => b.height - a.height);
 
   if (!audioUrl && metadata.requested_formats) {
-    const audioReq = metadata.requested_formats.find(f => f.vcodec === 'none' && f.acodec !== 'none');
+    const audioReq = metadata.requested_formats.find(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url);
     if (audioReq) audioUrl = audioReq.url;
   }
 
@@ -213,7 +233,34 @@ app.post('/api/youtube', async (req, res) => {
   }
 });
 
-// Proxy para forzar descarga directa sin abrir pestaña
+// 5. Endpoint X / Twitter (Videos, Clips con MP3)
+app.post('/api/twitter', async (req, res) => {
+  const { url } = req.body;
+
+  if (!url || (!url.includes('twitter.com') && !url.includes('x.com'))) {
+    return res.status(400).json({ error: 'Por favor ingresa un enlace válido de X o Twitter.' });
+  }
+
+  try {
+    const data = await extractWithYtdlp(url, 'X (Twitter)');
+    if (data.videoHD) {
+      return res.json({
+        success: true,
+        type: 'twitter',
+        ...data
+      });
+    } else {
+      return res.status(422).json({ error: 'No se encontró video en la publicación de X proporcionada.' });
+    }
+  } catch (err) {
+    console.error('Error Twitter/X:', err.stderr || err.message);
+    return res.status(422).json({
+      error: 'Error al procesar el video de X (Twitter). Verifica que la publicación contenga video y sea pública.'
+    });
+  }
+});
+
+// Proxy para forzar descarga directa con streaming en vivo y transcodificación rápida
 app.get('/api/stream-file', async (req, res) => {
   const { url, filename } = req.query;
 
@@ -221,29 +268,60 @@ app.get('/api/stream-file', async (req, res) => {
     return res.status(400).send('URL requerida');
   }
 
-  try {
-    const fileRes = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
+  const isAudio = filename && filename.toLowerCase().endsWith('.mp3');
+  const safeFilename = filename || (isAudio ? 'audio.mp3' : 'video.mp4');
+
+  // Si se solicita MP3 y la fuente es de audio (webm/opus/m4a de YouTube u otros),
+  // transcodificamos en tiempo real con ffmpeg en streaming para entregar MP3 real instantáneamente
+  if (isAudio) {
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+    res.setHeader('Content-Type', 'audio/mpeg');
+
+    const ffmpegProc = spawn('ffmpeg', [
+      '-i', url,
+      '-vn',
+      '-c:a', 'libmp3lame',
+      '-q:a', '2',
+      '-f', 'mp3',
+      'pipe:1'
+    ]);
+
+    ffmpegProc.stdout.pipe(res);
+    ffmpegProc.stderr.on('data', () => {});
+    ffmpegProc.on('error', (err) => {
+      console.error('Error spawn ffmpeg audio:', err);
+      if (!res.headersSent) res.status(500).send('Error procesando audio');
     });
 
-    if (!fileRes.ok) {
-      return res.status(fileRes.status).send('Error al obtener el recurso remoto');
-    }
-
-    const safeFilename = filename || (url.includes('.mp3') ? 'audio.mp3' : 'video.mp4');
-    const contentType = fileRes.headers.get('content-type') || 'application/octet-stream';
-
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-    res.setHeader('Content-Type', contentType);
-
-    const arrayBuffer = await fileRes.arrayBuffer();
-    return res.send(Buffer.from(arrayBuffer));
-  } catch (error) {
-    console.error('Error transmitiendo archivo:', error);
-    return res.status(500).send('Error al descargar el archivo.');
+    req.on('close', () => {
+      try { ffmpegProc.kill(); } catch (e) {}
+    });
+    return;
   }
+
+  // Para video (especialmente googlevideo.com / mp4):
+  // Si es googlevideo o mp4, usamos streaming directo con ffmpeg o proxy de chunks
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Content-Type', 'video/mp4');
+
+  const ffmpegProc = spawn('ffmpeg', [
+    '-i', url,
+    '-c', 'copy',
+    '-movflags', 'frag_keyframe+empty_moov',
+    '-f', 'mp4',
+    'pipe:1'
+  ]);
+
+  ffmpegProc.stdout.pipe(res);
+  ffmpegProc.stderr.on('data', () => {});
+  ffmpegProc.on('error', (err) => {
+    console.error('Error spawn ffmpeg video:', err);
+    if (!res.headersSent) res.status(500).send('Error procesando video');
+  });
+
+  req.on('close', () => {
+    try { ffmpegProc.kill(); } catch (e) {}
+  });
 });
 
 app.listen(PORT, () => {
