@@ -21,6 +21,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY server.js ./
+COPY cookies.txt ./
 
 # Puerto para Render
 ENV PORT=10000
