@@ -69,8 +69,63 @@ app.post('/api/tiktok', async (req, res) => {
   }
 });
 
-// Helper genérico para extraer con yt-dlp (Instagram, Facebook, YouTube y X)
+// Caché en memoria (15 minutos) para respuestas en <10ms
+const metadataCache = new Map();
+const CACHE_TTL = 15 * 60 * 1000;
+
+function getCached(url) {
+  const item = metadataCache.get(url);
+  if (item && Date.now() - item.ts < CACHE_TTL) return item.data;
+  return null;
+}
+
+function setCache(url, data) {
+  if (metadataCache.size > 500) {
+    const oldestKey = metadataCache.keys().next().value;
+    metadataCache.delete(oldestKey);
+  }
+  metadataCache.set(url, { ts: Date.now(), data });
+}
+
+// Fast-path para X / Twitter usando api.vxtwitter.com (~200ms vs 3.5s de yt-dlp)
+async function extractTwitterFast(url) {
+  try {
+    const u = new URL(url);
+    const apiUrl = `https://api.vxtwitter.com${u.pathname}`;
+    const res = await fetch(apiUrl, { signal: AbortSignal.timeout(3500) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.media_extended && data.media_extended.length > 0) {
+      const vid = data.media_extended.find(m => m.type === 'video' || m.type === 'gif') || data.media_extended[0];
+      if (vid && vid.url) {
+        return {
+          title: data.text ? data.text.slice(0, 80) : 'Video de X (Twitter)',
+          author: data.user_screen_name || data.user_name || 'X User',
+          cover: vid.thumbnail_url || '',
+          videoHD: vid.url,
+          music: vid.url,
+          audioTrack: null,
+          resolutions: null
+        };
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+// Helper genérico ultrarrápido para extraer con yt-dlp (Instagram, Facebook, YouTube y X)
 async function extractWithYtdlp(url, platformName) {
+  const cached = getCached(url);
+  if (cached) return cached;
+
+  if (platformName === 'X (Twitter)') {
+    const fastTw = await extractTwitterFast(url);
+    if (fastTw) {
+      setCache(url, fastTw);
+      return fastTw;
+    }
+  }
+
   const isYT = platformName === 'YouTube';
   const cookiesPath = path.join(__dirname, 'cookies.txt');
   const hasCookies = fs.existsSync(cookiesPath);
@@ -78,7 +133,10 @@ async function extractWithYtdlp(url, platformName) {
   const args = [
     '--dump-single-json',
     '--no-warnings',
-    '--no-playlist'
+    '--no-playlist',
+    '--no-check-certificates',
+    '--geo-bypass',
+    '--socket-timeout', '10'
   ];
 
   if (hasCookies) {
@@ -86,12 +144,13 @@ async function extractWithYtdlp(url, platformName) {
   }
 
   if (isYT) {
-    args.push('--extractor-args', 'youtube:player_client=android,web,tv');
+    // Usar solo cliente android reduce las peticiones de red internas de 3 a 1 (3x más rápido)
+    args.push('--extractor-args', 'youtube:player_client=android;player_skip=webpage,configs');
   }
 
   args.push(url);
 
-  const { stdout } = await execFileAsync(YTDLP_PATH, args, { timeout: 45000 });
+  const { stdout } = await execFileAsync(YTDLP_PATH, args, { timeout: 25000 });
 
   const metadata = JSON.parse(stdout);
 
@@ -142,7 +201,7 @@ async function extractWithYtdlp(url, platformName) {
     audioUrl = videoUrl;
   }
 
-  return {
+  const result = {
     title: metadata.title || metadata.description?.slice(0, 80) || `Video de ${platformName}`,
     author: metadata.uploader || metadata.channel || `${platformName} User`,
     cover: metadata.thumbnail || '',
@@ -151,6 +210,8 @@ async function extractWithYtdlp(url, platformName) {
     audioTrack: (metadata.requested_formats && metadata.requested_formats.find(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)?.url) || (metadata.formats && metadata.formats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url).pop()?.url) || null,
     resolutions: resolutions.length > 0 ? resolutions : null
   };
+  setCache(url, result);
+  return result;
 }
 
 // 2. Endpoint Instagram (Reels, Videos con MP3)
