@@ -1179,6 +1179,37 @@
       }
     }
 
+    // Despertar servidor Render preventivamente apenas carga la web (evita cold-start)
+    fetch(`${LOCAL_API}/health`).catch(() => {});
+
+    // Caché y pre-análisis silencioso en segundo plano cuando el usuario pega un link
+    const clientPrefetchCache = new Map();
+
+    function triggerPrefetch(rawUrl) {
+      if (!rawUrl || clientPrefetchCache.has(rawUrl)) return;
+      const platform = detectPlatform(rawUrl);
+      if (!platform) return;
+
+      const promise = (async () => {
+        if (platform === 'tiktok') {
+          return await fetchTiktokServerless(rawUrl);
+        } else {
+          const res = await fetch(`${LOCAL_API}/api/${platform}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: rawUrl })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo procesar el enlace.');
+          return data;
+        }
+      })();
+
+      // Evitar unhandled rejection si falla en silencio
+      promise.catch(() => { clientPrefetchCache.delete(rawUrl); });
+      clientPrefetchCache.set(rawUrl, promise);
+    }
+
     // Actualizar indicador visual de plataforma mientras escribe o pega
     function updatePlatformIndicator() {
       const val = urlInput.value.trim();
@@ -1197,6 +1228,7 @@
         platformIndicator.style.display = 'inline-flex';
         platformIndicator.className = `platform-indicator ${platform}`;
         platformIndicator.textContent = platform.charAt(0).toUpperCase() + platform.slice(1);
+        triggerPrefetch(val);
       } else {
         platformIndicator.style.display = 'none';
       }
@@ -1376,10 +1408,12 @@
       try {
         let data = null;
 
-        if (platform === 'tiktok') {
+        if (clientPrefetchCache.has(rawUrl)) {
+          data = await clientPrefetchCache.get(rawUrl);
+        } else if (platform === 'tiktok') {
           data = await fetchTiktokServerless(rawUrl);
         } else {
-          // Instagram, Facebook o YouTube vía backend
+          // Instagram, Facebook, YouTube o X vía backend
           const res = await fetch(`${LOCAL_API}/api/${platform}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
