@@ -106,10 +106,9 @@ async function extractWithYtdlp(url, platformName) {
       audioUrl = audioFormats[audioFormats.length - 1].url;
     }
 
-    // 2. Buscar formatos de video progresivos
+    // 2. Buscar formatos de video progresivos (con video Y audio)
     const videoWithAudio = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && f.url);
     if (videoWithAudio.length > 0) {
-      // Priorizar el formato más alto con audio y video
       videoUrl = videoWithAudio[videoWithAudio.length - 1].url;
       const seen = new Set();
       videoWithAudio.forEach(f => {
@@ -124,6 +123,7 @@ async function extractWithYtdlp(url, platformName) {
         }
       });
     } else {
+      // Si no hay video combinado progresivo (ej. DASH separado en Instagram/Facebook):
       const videoFormats = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.url);
       if (videoFormats.length > 0) {
         videoUrl = videoFormats[videoFormats.length - 1].url;
@@ -148,6 +148,7 @@ async function extractWithYtdlp(url, platformName) {
     cover: metadata.thumbnail || '',
     videoHD: videoUrl,
     music: audioUrl,
+    audioTrack: (metadata.requested_formats && metadata.requested_formats.find(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)?.url) || (metadata.formats && metadata.formats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url).pop()?.url) || null,
     resolutions: resolutions.length > 0 ? resolutions : null
   };
 }
@@ -262,7 +263,7 @@ app.post('/api/twitter', async (req, res) => {
 
 // Proxy para forzar descarga directa con streaming en vivo y transcodificación rápida
 app.get('/api/stream-file', async (req, res) => {
-  const { url, filename } = req.query;
+  const { url, audio, filename } = req.query;
 
   if (!url) {
     return res.status(400).send('URL requerida');
@@ -271,8 +272,7 @@ app.get('/api/stream-file', async (req, res) => {
   const isAudio = filename && filename.toLowerCase().endsWith('.mp3');
   const safeFilename = filename || (isAudio ? 'audio.mp3' : 'video.mp4');
 
-  // Si se solicita MP3 y la fuente es de audio (webm/opus/m4a de YouTube u otros),
-  // transcodificamos en tiempo real con ffmpeg en streaming para entregar MP3 real instantáneamente
+  // Si se solicita MP3
   if (isAudio) {
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
     res.setHeader('Content-Type', 'audio/mpeg');
@@ -299,18 +299,22 @@ app.get('/api/stream-file', async (req, res) => {
     return;
   }
 
-  // Para video (especialmente googlevideo.com / mp4):
-  // Si es googlevideo o mp4, usamos streaming directo con ffmpeg o proxy de chunks
+  // Para video (MP4)
   res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
   res.setHeader('Content-Type', 'video/mp4');
 
-  const ffmpegProc = spawn('ffmpeg', [
-    '-i', url,
-    '-c', 'copy',
-    '-movflags', 'frag_keyframe+empty_moov',
-    '-f', 'mp4',
-    'pipe:1'
-  ]);
+  // Si viene una pista de audio separada (como pasa en Instagram o Facebook DASH),
+  // FFmpeg une video + audio al vuelo en tiempo real:
+  const ffmpegArgs = ['-i', url];
+  if (audio && audio !== url) {
+    ffmpegArgs.push('-i', audio);
+    ffmpegArgs.push('-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0?');
+  } else {
+    ffmpegArgs.push('-c', 'copy');
+  }
+  ffmpegArgs.push('-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1');
+
+  const ffmpegProc = spawn('ffmpeg', ffmpegArgs);
 
   ffmpegProc.stdout.pipe(res);
   ffmpegProc.stderr.on('data', () => {});
