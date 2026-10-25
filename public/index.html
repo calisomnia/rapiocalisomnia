@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rapio - Descarga videos y audio de tus plataformas favoritas</title>
+  
+  <!-- Configuración PWA / Mobile App -->
+  <link rel="manifest" href="/manifest.json?v=5">
+  <meta name="theme-color" content="#0a1325">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rapio">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=7">
+  <link rel="shortcut icon" type="image/png" href="/icon-192.png?v=7">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=7">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #081020;
+      --primary-blue: #1877F2;
+      --primary-hover: #1464cc;
+      --text-white: #ffffff;
+      --text-blue-light: #6ba7ff;
+      --text-muted: #8496ae;
+      --text-dark: #0b1528;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background: radial-gradient(circle at 50% 25%, #0e1d38 0%, #081020 70%, #060b17 100%);
+      color: var(--text-white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Resplandor sutil idéntico a la referencia */
+    .ambient-glow {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 380px;
+      background: radial-gradient(circle, rgba(24, 119, 242, 0.12) 0%, rgba(8, 16, 32, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ENCABEZADO */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 24px 36px 0;
+    }
+
+    .header-content {
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .brand-logo-img {
+      height: 38px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    .footer-logo-img {
+      height: 26px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+    }
+
+    .nav-link {
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text-white);
+    }
+
+    .btn-install-app {
+      display: none;
+      background: transparent;
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      padding: 8px 18px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .btn-install-app:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #ffffff;
+    }
+
+    /* CONTENEDOR PRINCIPAL */
+    main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      max-width: 1140px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 38px 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* SECCI�N HERO */
+    .hero-section {
+      text-align: center;
+      max-width: 820px;
+      margin-bottom: 28px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #5d9bf8;
+      margin-bottom: 16px;
+      background: rgba(24, 119, 242, 0.08);
+      border: 1px solid rgba(93, 155, 248, 0.28);
+      padding: 6px 18px;
+      border-radius: 20px;
+    }
+
+    .hero-title {
+      font-size: 3.1rem;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -1.2px;
+      margin-bottom: 14px;
+    }
+
+    .hero-title .line-1 {
+      color: #ffffff;
+      display: block;
+    }
+
+    .hero-title .line-2 {
+      color: #6ba7ff;
+      display: block;
+    }
+
+    .hero-subtitle {
+      font-size: 16.5px;
+      color: var(--text-muted);
+      font-weight: 400;
+      line-height: 1.45;
+    }
+
+    /* TARJETA UNIFICADA DE DESCARGA */
+    .downloader-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 26px 32px 22px;
+      width: 100%;
+      max-width: 760px;
+      box-shadow: 0 12px 36px -5px rgba(0, 0, 0, 0.5);
+      color: var(--text-dark);
+      text-align: left;
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #0b1528;
+      letter-spacing: -0.2px;
+      margin-bottom: 16px;
+    }
+
+    .unified-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-wrapper-row {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .input-field-group {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: #ffffff;
+      border: 1px solid #d1d9e2;
+      border-radius: 10px;
+      padding: 0 8px 0 16px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .input-field-group:focus-within {
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.12);
+    }
+
+    .input-field-group.is-invalid {
+      border-color: #ef4444;
+      background: #fffafa;
+    }
+
+    .input-icon {
+      color: #7b8e9f;
+      display: flex;
+      align-items: center;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+
+    .unified-input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      padding: 13px 0;
+      font-size: 15px;
+      color: #0b1528;
+      outline: none;
+    }
+
+    .unified-input::placeholder {
+      color: #8fa0b2;
+      font-size: 14.5px;
+    }
+
+    .btn-paste-integrated {
+      background: #f1f4f8;
+      border: 1px solid #e1e7ee;
+      color: #1e293b;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-paste-integrated:hover {
+      background: #e4eaf1;
+      border-color: #cbd5e1;
+    }
+
+    .btn-paste-integrated svg {
+      width: 15px;
+      height: 15px;
+      stroke: #334155;
+    }
+
+    .btn-download-main {
+      background: var(--primary-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 0 24px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      box-shadow: 0 3px 8px rgba(24, 119, 242, 0.3);
+      transition: background 0.15s, transform 0.05s;
+      flex-shrink: 0;
+      min-height: 48px;
+    }
+
+    .btn-download-main:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-download-main:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-download-main:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .card-footer-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .help-hint {
+      font-size: 12px;
+      color: #8c9dae;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .platform-indicator {
+      display: none;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 5px;
+      color: #ffffff;
+    }
+
+    .platform-indicator.tiktok { display: inline-flex; background: #000000; }
+    .platform-indicator.instagram { display: inline-flex; background: #e1306c; }
+    .platform-indicator.facebook { display: inline-flex; background: #1877f2; }
+    .platform-indicator.youtube { display: inline-flex; background: #ff0000; }
+    .platform-indicator.twitter { display: inline-flex; background: #000000; }
+
+    /* FILA DE PLATAFORMAS CON SEPARADORES FINOS */
+    .platforms-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .platform-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .platform-divider {
+      width: 1px;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .platform-item-icon {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .platform-item-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    /* MENSAJES DE ESTADO (Error y Feedback) */
+    .status-msg-box {
+      width: 100%;
+      max-width: 620px;
+      margin-top: 14px;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+      font-weight: 500;
+      display: none;
+      text-align: left;
+    }
+
+    .status-error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    .status-paste-feedback {
+      background: rgba(24, 119, 242, 0.12);
+      border: 1px solid rgba(24, 119, 242, 0.35);
+      color: #93c5fd;
+    }
+
+    /* RESULTADO DE LA DESCARGA */
+    .result-section {
+      width: 100%;
+      max-width: 620px;
+      margin-top: 20px;
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      display: none;
+      color: var(--text-dark);
+    }
+
+    .result-content {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .result-thumb-wrapper {
+      position: relative;
+      flex-shrink: 0;
+      width: 150px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #0b1528;
+    }
+
+    .result-thumb-wrapper img {
+      width: 100%;
+      height: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .result-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .result-platform-badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      color: #ffffff;
+    }
+
+    .result-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .result-author {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .resolutions-block {
+      margin-top: 4px;
+      display: none;
+    }
+
+    .resolutions-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .resolutions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+      gap: 6px;
+    }
+
+    .res-btn {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0f172a;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .res-btn:hover:not(:disabled) {
+      background: var(--primary-blue);
+      border-color: var(--primary-blue);
+      color: #ffffff;
+    }
+
+    .action-buttons-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+
+    .action-btn:hover:not(:disabled) {
+      opacity: 0.92;
+    }
+
+    .btn-action-primary {
+      background: var(--primary-blue);
+      color: #ffffff;
+    }
+
+    .btn-action-audio {
+      background: #0b1528;
+      color: #ffffff;
+    }
+
+    /* SECCI�N C�MO FUNCIONA: 3 COLUMNAS ABIERTAS CON SEPARADORES FINOS */
+    .how-it-works-section {
+      width: 100%;
+      max-width: 820px;
+      margin-top: 26px;
+      text-align: center;
+    }
+
+    .steps-columns {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .step-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 0 14px;
+    }
+
+    .step-divider {
+      width: 1px;
+      height: 75px;
+      background: rgba(255, 255, 255, 0.12);
+      align-self: center;
+      flex-shrink: 0;
+    }
+
+    .step-circle-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(24, 119, 242, 0.45);
+      background: rgba(24, 119, 242, 0.08);
+      color: #6ba7ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .step-circle-icon svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .step-header-text {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .step-paragraph {
+      font-size: 11.5px;
+      color: #8496ae;
+      line-height: 1.4;
+      max-width: 200px;
+    }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px 28px;
+      margin-top: 20px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .footer-content {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-white);
+      font-weight: 800;
+      font-size: 1.35rem;
+      letter-spacing: -0.3px;
+    }
+
+    .footer-logo-small {
+      width: 26px;
+      height: 26px;
+      background: var(--primary-blue);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer-logo-small svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .footer-link-text {
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: default;
+    }
+
+    /* RESPONSIVE / ADAPTACI�N M�VIL */
+    @media (max-width: 768px) {
+      header {
+        padding: 16px 20px 0;
+      }
+
+      .brand-logo-img {
+        height: 30px;
+      }
+
+      .nav-link {
+        display: none;
+      }
+
+      main {
+        padding: 26px 16px 20px;
+      }
+
+      .hero-section {
+        margin-bottom: 22px;
+      }
+
+      .hero-title {
+        font-size: 1.55rem;
+        letter-spacing: -0.5px;
+        line-height: 1.22;
+        max-width: 320px;
+        margin: 0 auto 12px;
+        word-break: break-word;
+      }
+
+      .hero-subtitle {
+        font-size: 13.5px;
+      }
+
+      .downloader-card {
+        padding: 20px 16px;
+        border-radius: 12px;
+      }
+
+      .input-wrapper-row {
+        flex-direction: column;
+      }
+
+      .btn-download-main {
+        width: 100%;
+        min-height: 44px;
+      }
+
+      .platforms-row {
+        margin-top: 22px;
+        gap: 12px 6px;
+      }
+
+      .platform-divider {
+        display: none;
+      }
+
+      .platform-item {
+        padding: 0 10px;
+        font-size: 12.5px;
+      }
+
+      .steps-columns {
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .step-divider {
+        display: none;
+      }
+
+      .step-column {
+        padding: 0;
+      }
+
+      .step-paragraph {
+        max-width: 280px;
+      }
+
+      .result-content {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .result-thumb-wrapper {
+        width: 100%;
+        max-width: 240px;
+      }
+
+      footer {
+        padding: 20px 20px;
+        margin-top: 30px;
+      }
+
+      .footer-links {
+        gap: 14px;
+      }
+
+      .footer-link-text {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Resplandor sutil detrás del contenido central -->
+  <div class="ambient-glow" aria-hidden="true"></div>
+
+  <!-- ENCABEZADO -->
+  <header>
+    <div class="header-content">
+      <a href="/" class="brand-title" aria-label="Rapio by Calis">
+        <img src="/rapio-by-calis.png?v=8" alt="Rapio by Calis" class="brand-logo-img">
+      </a>
+
+      <div class="header-actions">
+        <a href="#como-funciona" class="nav-link">Cómo funciona</a>
+        <button class="btn-install-app" id="btnInstallHeader" type="button" aria-label="Instalar aplicación Rapio">
+          Instalar app
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main>
+    
+    <!-- SECCI�N PRINCIPAL HERO -->
+    <section class="hero-section">
+      <span class="hero-badge">TUS VIDEOS, EN UN SOLO LUGAR</span>
+      <h1 class="hero-title">
+        <span class="line-1">Pega el enlace.</span>
+        <span class="line-2">Nosotros hacemos el resto.</span>
+      </h1>
+      <p class="hero-subtitle">Descarga videos y audio de tus plataformas favoritas.</p>
+    </section>
+
+    <!-- TARJETA UNIFICADA DE DESCARGA -->
+    <section class="downloader-card" aria-label="Formulario de descarga de video">
+      <h2 class="card-title">¿Qué quieres descargar?</h2>
+
+      <form class="unified-form" id="downloadForm" onsubmit="return false;">
+        <div class="input-wrapper-row">
+          
+          <div class="input-field-group" id="inputFieldGroup">
+            <span class="input-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </span>
+            <input 
+              type="url" 
+              class="unified-input" 
+              id="unifiedUrlInput" 
+              placeholder="Pega aquí el enlace de tu video" 
+              autocomplete="off" 
+              spellcheck="false"
+              aria-label="Enlace del video"
+              required
+            >
+            <button class="btn-paste-integrated" id="btnPaste" type="button" aria-label="Pegar enlace desde el portapapeles">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Pegar</span>
+            </button>
+          </div>
+
+          <button class="btn-download-main" id="btnDownload" type="submit" aria-label="Descargar video">
+            <svg width="17" height="17" viewBox="0 0 40 40" fill="none" id="btnDownloadIcon">
+              <path d="M20 10v13m0 0l-5-5m5 5l5-5" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 28h16" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
+            </svg>
+            <span id="btnDownloadText">Descargar</span>
+          </button>
+        </div>
+
+        <div class="card-footer-info">
+          <span class="help-hint">
+            Detectamos la plataforma automáticamente.
+          </span>
+
+          <span class="platform-indicator" id="platformIndicator" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- FILA DE PLATAFORMAS CON ICONOS EXACTOS Y SEPARADORES VERTICALES -->
+    <div class="platforms-row" aria-label="Plataformas compatibles">
+      
+      <!-- TikTok -->
+      <div class="platform-item">
+        <div class="platform-item-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="11" fill="#000000" />
+            <path d="M14.5 7.5c.6.8 1.4 1.3 2.5 1.4v2.1c-.9 0-1.8-.3-2.5-.8V15a4 4 0 1 1-4-4c.4 0 .7.1 1.1.2v2.2a2 2 0 1 0 1.9 2V6h2v1.5z" fill="#ffffff" />
+          </svg>
+        </div>
+        <span>TikTok</span>
+      </div>
+
+      <div class="platform-divider" aria-hidden="true"></div>
+
+      <!-- Instagram -->
+      <div class="platform-item">
+        <div class="platform-item-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <defs>
+              <linearGradient id="igGradRef" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ffdc80"/>
+                <stop offset="50%" stop-color="#e1306c"/>
+                <stop offset="100%" stop-color="#833ab4"/>
+              </linearGradient>
+            </defs>
+            <rect width="22" height="22" x="1" y="1" rx="6" fill="url(#igGradRef)"/>
+            <circle cx="12" cy="12" r="4.2" stroke="#ffffff" stroke-width="1.8" fill="none"/>
+            <circle cx="17.2" cy="6.8" r="1.1" fill="#ffffff"/>
+          </svg>
+        </div>
+        <span>Instagram</span>
+      </div>
+
+      <div class="platform-divider" aria-hidden="true"></div>
+
+      <!-- Facebook -->
+      <div class="platform-item">
+        <div class="platform-item-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="11" fill="#1877F2" />
+            <path d="M13.5 19v-6.5h2.2l.3-2.6h-2.5V8.2c0-.7.2-1.3 1.3-1.3h1.4V4.6c-.6-.1-1.4-.1-2.2-.1-2.2 0-3.7 1.4-3.7 3.8v1.6H8.2v2.6h2.1V19h3.2z" fill="#ffffff" />
+          </svg>
+        </div>
+        <span>Facebook</span>
+      </div>
+
+      <div class="platform-divider" aria-hidden="true"></div>
+
+      <!-- YouTube -->
+      <div class="platform-item">
+        <div class="platform-item-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="5" width="20" height="14" rx="4.5" fill="#FF0000" />
+            <polygon points="10,8.5 16,12 10,15.5" fill="#ffffff" />
+          </svg>
+        </div>
+        <span>YouTube</span>
+      </div>
+
+      <div class="platform-divider" aria-hidden="true"></div>
+
+      <!-- X / Twitter -->
+      <div class="platform-item">
+        <div class="platform-item-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect width="22" height="22" x="1" y="1" rx="5" fill="#000000" />
+            <path d="M16.5 5.5h2.3l-5 5.7 5.9 7.8h-4.6l-3.6-4.7-4.1 4.7H5l5.4-6.1L4.8 5.5h4.7l3.3 4.3 3.7-4.3zm-.8 12.2h1.3L8.4 6.8H7l8.7 10.9z" fill="#ffffff" />
+          </svg>
+        </div>
+        <span>X (Twitter)</span>
+      </div>
+
+    </div>
+
+    <!-- MENSAJES DE ESTADO / ERROR -->
+    <div class="status-msg-box status-error" id="errorMsgBox" role="alert"></div>
+    <div class="status-msg-box status-paste-feedback" id="pasteFeedbackBox" role="status"></div>
+
+    <!-- TARJETA DE RESULTADOS -->
+    <section class="result-section" id="resultContainer" aria-label="Resultado de la descarga">
+      <div class="result-content">
+        <div class="result-thumb-wrapper">
+          <img id="videoThumb" src="" alt="Miniatura del video" loading="lazy">
+        </div>
+
+        <div class="result-details">
+          <span class="result-platform-badge" id="resultBadge">VIDEO</span>
+          <h3 class="result-title" id="videoTitle">Título del video</h3>
+          <div class="result-author" id="videoAuthor">Autor</div>
+
+          <!-- Malla de calidades disponibles (YouTube) -->
+          <div class="resolutions-block" id="resolutionsContainer">
+            <div class="resolutions-title">Calidades de video disponibles:</div>
+            <div class="resolutions-grid" id="resolutionsGrid"></div>
+          </div>
+
+          <!-- Botones de descarga de acción directa -->
+          <div class="action-buttons-group">
+            <button id="btnHD" type="button" class="action-btn btn-action-primary">
+              <svg width="16" height="16" viewBox="0 0 40 40" fill="none">
+                <path d="M20 10v13m0 0l-5-5m5 5l5-5" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 28h16" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
+              </svg>
+              <span>Descargar Video en HD</span>
+            </button>
+
+            <button id="btnMusic" type="button" class="action-btn btn-action-audio">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+              <span>Descargar Audio (MP3)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCI�N C�MO FUNCIONA EXACTA: 3 COLUMNAS ABIERTAS CON SEPARADORES VERTICALES -->
+    <section class="how-it-works-section" id="como-funciona" aria-label="Cómo funciona Rapio">
+      <div class="steps-columns">
+        
+        <!-- Paso 1 -->
+        <div class="step-column">
+          <div class="step-circle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <div class="step-header-text">1. Copia el enlace</div>
+          <p class="step-paragraph">En la app o web de tu plataforma favorita, copia el enlace del video que quieres descargar.</p>
+        </div>
+
+        <div class="step-divider" aria-hidden="true"></div>
+
+        <!-- Paso 2 -->
+        <div class="step-column">
+          <div class="step-circle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+          </div>
+          <div class="step-header-text">2. Pégalo en Rapio</div>
+          <p class="step-paragraph">Pega el enlace en el campo de arriba. Detectamos la plataforma automáticamente.</p>
+        </div>
+
+        <div class="step-divider" aria-hidden="true"></div>
+
+        <!-- Paso 3 -->
+        <div class="step-column">
+          <div class="step-circle-icon" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none">
+              <path d="M20 9v14m0 0l-5-5m5 5l5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 29h16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="step-header-text">3. Descarga tu video</div>
+          <p class="step-paragraph">Elige el formato que prefieras y descarga tu video o audio en segundos.</p>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER REPLICADO EXACTAMENTE CON ENLACES NO VACÍOS -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <img src="/logo-r.png?v=7" alt="Rapio" class="footer-logo-img">
+        <span>Rapio</span>
+      </div>
+
+      <div class="footer-links">
+        <span class="footer-link-text">Ayuda</span>
+        <span class="footer-link-text">Privacidad</span>
+        <span class="footer-link-text">Términos</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Registro del Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js?v=5').then(reg => {
+          reg.update();
+        }).catch(err => console.log('SW error:', err));
+      });
+    }
+
+    // Manejo de la instalación PWA (�anicamente botón en encabezado, banner flotante eliminado)
+    let deferredPrompt = null;
+    const btnInstallHeader = document.getElementById('btnInstallHeader');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btnInstallHeader.style.display = 'inline-block';
+    });
+
+    async function installPwa() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          btnInstallHeader.style.display = 'none';
+        }
+        deferredPrompt = null;
+      }
+    }
+
+    btnInstallHeader.addEventListener('click', installPwa);
+
+    // API Backend (Local o Cloudflare Tunnel para yt-dlp)
+    const LOCAL_API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? ''
+      : 'https://rapiocalisomnia-1.onrender.com';
+
+    // Elementos del DOM
+    const urlInput = document.getElementById('unifiedUrlInput');
+    const btnPaste = document.getElementById('btnPaste');
+    const btnDownload = document.getElementById('btnDownload');
+    const btnDownloadText = document.getElementById('btnDownloadText');
+    const platformIndicator = document.getElementById('platformIndicator');
+    const inputFieldGroup = document.getElementById('inputFieldGroup');
+
+    const errorMsgBox = document.getElementById('errorMsgBox');
+    const pasteFeedbackBox = document.getElementById('pasteFeedbackBox');
+
+    const resultContainer = document.getElementById('resultContainer');
+    const videoThumb = document.getElementById('videoThumb');
+    const videoTitle = document.getElementById('videoTitle');
+    const videoAuthor = document.getElementById('videoAuthor');
+    const resultBadge = document.getElementById('resultBadge');
+    const btnHD = document.getElementById('btnHD');
+    const btnMusic = document.getElementById('btnMusic');
+    const resolutionsContainer = document.getElementById('resolutionsContainer');
+    const resolutionsGrid = document.getElementById('resolutionsGrid');
+
+    let currentMediaData = null;
+    let isProcessing = false;
+
+    // Validación y detección estricta por HOSTNAME
+    function detectPlatform(urlString) {
+      if (!urlString) return null;
+      let cleanUrl = urlString.trim();
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        cleanUrl = 'https://' + cleanUrl;
+      }
+
+      try {
+        const parsed = new URL(cleanUrl);
+        const host = parsed.hostname.toLowerCase();
+
+        // 1. TikTok
+        if (host === 'tiktok.com' || host.endsWith('.tiktok.com')) {
+          return 'tiktok';
+        }
+        // 2. Instagram
+        if (host === 'instagram.com' || host.endsWith('.instagram.com') || host === 'instagr.am') {
+          return 'instagram';
+        }
+        // 3. Facebook
+        if (
+          host === 'facebook.com' || host.endsWith('.facebook.com') ||
+          host === 'fb.watch' || host.endsWith('.fb.watch') ||
+          host === 'fb.com' || host.endsWith('.fb.com') ||
+          host === 'fb.gg' || host.endsWith('.fb.gg')
+        ) {
+          return 'facebook';
+        }
+        // 4. YouTube
+        if (
+          host === 'youtube.com' || host.endsWith('.youtube.com') ||
+          host === 'youtu.be' || host.endsWith('.youtu.be')
+        ) {
+          return 'youtube';
+        }
+        // 5. X / Twitter
+        if (
+          host === 'twitter.com' || host.endsWith('.twitter.com') ||
+          host === 'x.com' || host.endsWith('.x.com')
+        ) {
+          return 'twitter';
+        }
+
+        return null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Actualizar indicador visual de plataforma mientras escribe o pega
+    function updatePlatformIndicator() {
+      const val = urlInput.value.trim();
+      inputFieldGroup.classList.remove('is-invalid');
+      hideError();
+
+      if (!val) {
+        platformIndicator.style.display = 'none';
+        platformIndicator.className = 'platform-indicator';
+        platformIndicator.textContent = '';
+        return;
+      }
+
+      const platform = detectPlatform(val);
+      if (platform) {
+        platformIndicator.style.display = 'inline-flex';
+        platformIndicator.className = `platform-indicator ${platform}`;
+        platformIndicator.textContent = platform.charAt(0).toUpperCase() + platform.slice(1);
+      } else {
+        platformIndicator.style.display = 'none';
+      }
+    }
+
+    urlInput.addEventListener('input', updatePlatformIndicator);
+
+    // Botón Pegar con fallback seguro y feedback accesible
+    btnPaste.addEventListener('click', async () => {
+      hideFeedback();
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          throw new Error('Clipboard no disponible');
+        }
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          urlInput.value = text.trim();
+          updatePlatformIndicator();
+          urlInput.focus();
+        } else {
+          showPasteFeedback('El portapapeles está vacío. Copia un enlace e inténtalo de nuevo.');
+        }
+      } catch (err) {
+        showPasteFeedback('No se pudo acceder al portapapeles. Pega el enlace con Ctrl + V o mantén presionado.');
+        urlInput.focus();
+      }
+    });
+
+    // Enviar con Enter
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        startDownloadProcess();
+      }
+    });
+
+    document.getElementById('downloadForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      startDownloadProcess();
+    });
+
+    // Descarga directa en el navegador con Fetch -> Blob o Stream directo
+    async function triggerDownload(fileUrl, filename, btnElement) {
+      if (!fileUrl) return;
+      const originalText = btnElement ? btnElement.innerHTML : '';
+      if (btnElement) {
+        btnElement.innerHTML = `<span>Descargando...</span>`;
+        btnElement.disabled = true;
+      }
+
+      const resetBtn = () => {
+        if (btnElement) {
+          setTimeout(() => {
+            btnElement.innerHTML = originalText;
+            btnElement.disabled = false;
+          }, 2500);
+        }
+      };
+
+      const audioParam = (currentMediaData && (currentMediaData.audioTrack || currentMediaData.music)) ? `&audio=${encodeURIComponent(currentMediaData.audioTrack || currentMediaData.music)}` : '';
+
+      try {
+        // 1. Si no requiere unir audio externo y no está bloqueado por CORS, intentar fetch directo
+        if (!audioParam && !fileUrl.includes('googlevideo.com') && !fileUrl.includes('fbcdn.net') && !fileUrl.includes('cdninstagram.com')) {
+          const response = await fetch(fileUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
+            resetBtn();
+            return;
+          }
+        }
+      } catch (e) {
+        // Fallback automático
+      }
+
+      // 2. Descarga forzada a través de nuestro endpoint stream (une audio + video automáticamente si vienen separados)
+      const downloadUrl = `${LOCAL_API}/api/stream-file?url=${encodeURIComponent(fileUrl)}${audioParam}&filename=${encodeURIComponent(filename)}`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      resetBtn();
+    }
+
+    // Descarga directa de HD
+    btnHD.addEventListener('click', () => {
+      if (currentMediaData && currentMediaData.videoHD) {
+        const ext = currentMediaData.videoHD.includes('.jpg') || currentMediaData.videoHD.includes('.webp') ? 'jpg' : 'mp4';
+        const prefix = `rapio_${currentMediaData.type || 'video'}`;
+        triggerDownload(currentMediaData.videoHD, `${prefix}.${ext}`, btnHD).finally(() => {
+          btnHD.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 40 40" fill="none">
+              <path d="M20 10v13m0 0l-5-5m5 5l5-5" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 28h16" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
+            </svg>
+            <span>Descargar Video en HD</span>`;
+          btnHD.disabled = false;
+        });
+      }
+    });
+
+    // Descarga directa de Audio MP3
+    btnMusic.addEventListener('click', () => {
+      if (currentMediaData && currentMediaData.music) {
+        const prefix = `rapio_${currentMediaData.type || 'audio'}`;
+        triggerDownload(currentMediaData.music, `${prefix}.mp3`, btnMusic).finally(() => {
+          btnMusic.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            <span>Descargar Audio (MP3)</span>`;
+          btnMusic.disabled = false;
+        });
+      }
+    });
+
+    // Extracción directa Serverless para TikTok
+    async function fetchTiktokServerless(url) {
+      const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
+      const res = await fetch(apiUrl);
+      const json = await res.json();
+      if (json.code === 0 && json.data) {
+        const info = json.data;
+        return {
+          success: true,
+          type: 'tiktok',
+          title: info.title || 'Video de TikTok',
+          author: info.author ? info.author.nickname : 'TikTok User',
+          cover: info.cover,
+          videoHD: info.hdplay || info.play,
+          music: info.music
+        };
+      }
+      throw new Error(json.msg || 'No se pudo procesar el enlace de TikTok.');
+    }
+
+    // Flujo principal de procesamiento
+    async function startDownloadProcess() {
+      if (isProcessing) return;
+
+      const rawUrl = urlInput.value.trim();
+      hideError();
+      hideFeedback();
+
+      if (!rawUrl) {
+        inputFieldGroup.classList.add('is-invalid');
+        showError('Por favor pega un enlace para continuar.');
+        urlInput.focus();
+        return;
+      }
+
+      const platform = detectPlatform(rawUrl);
+      if (!platform) {
+        inputFieldGroup.classList.add('is-invalid');
+        showError('Enlace no reconocido. Aseg�rate de que sea de TikTok, Instagram, Facebook, YouTube o X.');
+        return;
+      }
+
+      // Activar estado de procesamiento y deshabilitar envíos duplicados
+      isProcessing = true;
+      btnDownload.disabled = true;
+      btnDownloadText.textContent = 'Procesando...';
+      resultContainer.style.display = 'none';
+      resolutionsContainer.style.display = 'none';
+      resolutionsGrid.innerHTML = '';
+
+      try {
+        let data = null;
+
+        if (platform === 'tiktok') {
+          data = await fetchTiktokServerless(rawUrl);
+        } else {
+          // Instagram, Facebook o YouTube vía backend
+          const res = await fetch(`${LOCAL_API}/api/${platform}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: rawUrl })
+          });
+          data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'No se pudo procesar el enlace.');
+          }
+        }
+
+        if (data && data.success) {
+          currentMediaData = data;
+          videoThumb.src = data.cover || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400';
+          videoTitle.textContent = data.title || 'Video descargado';
+          videoAuthor.textContent = data.author ? `@${data.author}` : '';
+
+          // Badge de plataforma en resultado
+          resultBadge.textContent = platform === 'twitter' ? 'X (TWITTER)' : platform.toUpperCase();
+          if (platform === 'tiktok') resultBadge.style.background = '#000000';
+          if (platform === 'instagram') resultBadge.style.background = '#e1306c';
+          if (platform === 'facebook') resultBadge.style.background = '#1877f2';
+          if (platform === 'youtube') resultBadge.style.background = '#ff0000';
+          if (platform === 'twitter') resultBadge.style.background = '#000000';
+
+          // Manejo de calidades (YouTube)
+          if (data.resolutions && data.resolutions.length > 0) {
+            resolutionsContainer.style.display = 'block';
+            resolutionsGrid.innerHTML = '';
+            data.resolutions.forEach(resItem => {
+              const b = document.createElement('button');
+              b.className = 'res-btn';
+              b.type = 'button';
+              b.textContent = `${resItem.quality}`;
+              b.addEventListener('click', () => {
+                triggerDownload(resItem.url, `rapio_youtube_${resItem.quality}.mp4`, b);
+              });
+              resolutionsGrid.appendChild(b);
+            });
+            // Mantener btnHD activo con la mejor calidad disponible
+            btnHD.style.display = 'flex';
+            currentMediaData.videoHD = data.resolutions[0].url;
+          } else if (data.videoHD) {
+            btnHD.style.display = 'flex';
+          } else {
+            btnHD.style.display = 'none';
+          }
+
+          // Audio
+          if (data.music) {
+            btnMusic.style.display = 'flex';
+          } else {
+            btnMusic.style.display = 'none';
+          }
+
+          resultContainer.style.display = 'block';
+          resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      } catch (err) {
+        showError(err.message || 'Error al procesar el enlace. Intenta de nuevo.');
+        // Conserva el enlace en el input para facilitar el reintento
+      } finally {
+        isProcessing = false;
+        btnDownload.disabled = false;
+        btnDownloadText.textContent = 'Descargar';
+      }
+    }
+
+    function showError(msg) {
+      errorMsgBox.textContent = msg;
+      errorMsgBox.style.display = 'block';
+    }
+
+    function hideError() {
+      errorMsgBox.style.display = 'none';
+      errorMsgBox.textContent = '';
+    }
+
+    function showPasteFeedback(msg) {
+      pasteFeedbackBox.textContent = msg;
+      pasteFeedbackBox.style.display = 'block';
+      setTimeout(hideFeedback, 4500);
+    }
+
+    function hideFeedback() {
+      pasteFeedbackBox.style.display = 'none';
+      pasteFeedbackBox.textContent = '';
+    }
+  </script>
+
+</body>
+</html>
+
