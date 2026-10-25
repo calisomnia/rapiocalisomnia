@@ -113,10 +113,84 @@ async function extractTwitterFast(url) {
   return null;
 }
 
+// Fast-path para Facebook (~1.2s extrayendo directamente streams progresivos con audio integrado browser_native_hd_url)
+async function extractFacebookFast(url) {
+  try {
+    const res = await fetch(url, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(4500),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        'Sec-Fetch-Mode': 'navigate'
+      }
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    const cleanJsonStr = (str) => {
+      try { return JSON.parse('"' + str + '"'); } catch (e) { return str.replace(/\\\//g, '/').replace(/&amp;/g, '&'); }
+    };
+
+    const decodeEntities = (str) => {
+      return str
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+    };
+
+    const hdMatch = html.match(/"browser_native_hd_url":"([^"]+)"/) || html.match(/"playable_url_quality_hd":"([^"]+)"/) || html.match(/"hd_src":"([^"]+)"/);
+    const sdMatch = html.match(/"browser_native_sd_url":"([^"]+)"/) || html.match(/"playable_url":"([^"]+)"/) || html.match(/"sd_src":"([^"]+)"/);
+
+    const videoHD = hdMatch ? cleanJsonStr(hdMatch[1]) : (sdMatch ? cleanJsonStr(sdMatch[1]) : null);
+    if (!videoHD) return null;
+
+    // Si además viene una pista de audio DASH explícita, la guardamos por seguridad, aunque browser_native_hd_url ya trae audio
+    const audioMatch = html.match(/"audio_channel_configuration":"[^"]+","[^"]*":"([^"]+)"/);
+    const thumbMatch =
+      html.match(/"preferred_thumbnail":\{"image":\{"uri":"([^"]+)"/) ||
+      html.match(/"thumbnailImage":\{"uri":"([^"]+)"/) ||
+      html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
+
+    const titleMatch =
+      html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i) ||
+      html.match(/<title>([^<]+)<\/title>/i);
+
+    const authorMatch = html.match(/"owner":\{"__typename":"(?:User|Page)","name":"([^"]+)"/);
+
+    let rawTitle = titleMatch ? decodeEntities(titleMatch[1]).replace(/\s*\|\s*Facebook$/i, '').trim() : 'Video de Facebook';
+    if (rawTitle.length > 90) rawTitle = rawTitle.slice(0, 90) + '...';
+
+    return {
+      title: rawTitle,
+      author: authorMatch ? cleanJsonStr(authorMatch[1]) : 'Facebook Video',
+      cover: thumbMatch ? cleanJsonStr(thumbMatch[1]) : '',
+      videoHD: videoHD,
+      music: videoHD,
+      audioTrack: null,
+      resolutions: null
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 // Helper genérico ultrarrápido para extraer con yt-dlp (Instagram, Facebook, YouTube y X)
 async function extractWithYtdlp(url, platformName) {
   const cached = getCached(url);
   if (cached) return cached;
+
+  if (platformName === 'Facebook') {
+    const fastFb = await extractFacebookFast(url);
+    if (fastFb) {
+      setCache(url, fastFb);
+      return fastFb;
+    }
+  }
 
   if (platformName === 'X (Twitter)') {
     const fastTw = await extractTwitterFast(url);
@@ -156,6 +230,7 @@ async function extractWithYtdlp(url, platformName) {
 
   let videoUrl = metadata.url;
   let audioUrl = null;
+  let needsExternalAudio = false;
   const resolutions = [];
 
   if (metadata.formats && metadata.formats.length > 0) {
@@ -169,6 +244,7 @@ async function extractWithYtdlp(url, platformName) {
     const videoWithAudio = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && f.url);
     if (videoWithAudio.length > 0) {
       videoUrl = videoWithAudio[videoWithAudio.length - 1].url;
+      needsExternalAudio = false;
       const seen = new Set();
       videoWithAudio.forEach(f => {
         const height = f.height || 0;
@@ -186,6 +262,7 @@ async function extractWithYtdlp(url, platformName) {
       const videoFormats = metadata.formats.filter(f => f.vcodec && f.vcodec !== 'none' && f.url);
       if (videoFormats.length > 0) {
         videoUrl = videoFormats[videoFormats.length - 1].url;
+        needsExternalAudio = true;
       }
     }
   }
@@ -197,6 +274,8 @@ async function extractWithYtdlp(url, platformName) {
     if (audioReq) audioUrl = audioReq.url;
   }
 
+  const externalAudioTrack = needsExternalAudio ? (audioUrl || null) : null;
+
   if (!audioUrl && videoUrl) {
     audioUrl = videoUrl;
   }
@@ -207,7 +286,7 @@ async function extractWithYtdlp(url, platformName) {
     cover: metadata.thumbnail || '',
     videoHD: videoUrl,
     music: audioUrl,
-    audioTrack: (metadata.requested_formats && metadata.requested_formats.find(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)?.url) || (metadata.formats && metadata.formats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url).pop()?.url) || null,
+    audioTrack: externalAudioTrack,
     resolutions: resolutions.length > 0 ? resolutions : null
   };
   setCache(url, result);
