@@ -1288,11 +1288,11 @@
         }
       };
 
-      const audioParam = (currentMediaData && (currentMediaData.audioTrack || currentMediaData.music)) ? `&audio=${encodeURIComponent(currentMediaData.audioTrack || currentMediaData.music)}` : '';
+      const audioParam = (currentMediaData && currentMediaData.audioTrack) ? `&audio=${encodeURIComponent(currentMediaData.audioTrack)}` : '';
 
       try {
-        // 1. Si no requiere unir audio externo y no está bloqueado por CORS, intentar fetch directo
-        if (!audioParam && !fileUrl.includes('googlevideo.com') && !fileUrl.includes('fbcdn.net') && !fileUrl.includes('cdninstagram.com')) {
+        // 1. Si ya trae el audio integrado (no tiene audioTrack separado) y no es de YouTube (bloqueado por CORS), descarga directa ultrarrápida
+        if (!audioParam && !fileUrl.includes('googlevideo.com')) {
           const response = await fetch(fileUrl);
           if (response.ok) {
             const blob = await response.blob();
